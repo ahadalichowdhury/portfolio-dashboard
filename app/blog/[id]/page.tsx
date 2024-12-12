@@ -48,7 +48,7 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const url = params.id === 'new' ? `${API_BASE_URL}/api/blog` : `${API_BASE_URL}/api/blog/${params.id}`
+      const url = params.id === 'new' ? `${API_BASE_URL}/api/blogs` : `${API_BASE_URL}/api/blogs/${params.id}`
       const method = params.id === 'new' ? 'POST' : 'PATCH'
       
       const response = await fetch(url, {
@@ -75,7 +75,7 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/blog/${params.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/blogs/${params.id}`, {
         method: 'DELETE',
       })
 
