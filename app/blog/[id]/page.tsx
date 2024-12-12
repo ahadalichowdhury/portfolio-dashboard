@@ -1,80 +1,93 @@
-"use client";
+'use client'
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { API_BASE_URL } from "@/lib/api-config";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { API_BASE_URL } from '@/lib/api-config'
+import MDEditor from '@uiw/react-md-editor'
+import { Textarea } from "@/components/ui/textarea"
 
 interface BlogPost {
-  _id?: string;
-  title: string;
-  excerpt: string;
-  content: string;
-  tags: string[];
+  _id?: string
+  title: string
+  excerpt: string
+  content: string
+  tags: string[]
 }
 
 export default function BlogPostPage({ params }: { params: { id: string } }) {
-  const router = useRouter();
+  const router = useRouter()
   const [post, setPost] = useState<BlogPost>({
-    title: "",
-    excerpt: "",
-    content: "",
-    tags: [],
-  });
+    title: '',
+    excerpt: '',
+    content: '',
+    tags: []
+  })
+
+  const fetchPost = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/blog/${params.id}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch post')
+      }
+      const data = await response.json()
+      setPost(data)
+    } catch (error) {
+      console.error('Error fetching post:', error)
+    }
+  }, [params.id])
 
   useEffect(() => {
-    if (params.id !== "new") {
-      fetchPost();
+    if (params.id !== 'new') {
+      void fetchPost()
     }
-  }, [params.id]);
-
-  const fetchPost = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/blogs/${params.id}`);
-    const data = await response.json();
-    setPost(data);
-  };
+  }, [params.id, fetchPost])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const url =
-      params.id === "new"
-        ? `${API_BASE_URL}/api/blog`
-        : `${API_BASE_URL}/api/blog/${params.id}`;
-    const method = params.id === "new" ? "POST" : "PATCH";
+    e.preventDefault()
+    try {
+      const url = params.id === 'new' ? `${API_BASE_URL}/api/blog` : `${API_BASE_URL}/api/blog/${params.id}`
+      const method = params.id === 'new' ? 'POST' : 'PATCH'
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(post),
+      })
 
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(post),
-    });
+      if (!response.ok) {
+        throw new Error('Failed to save post')
+      }
 
-    if (response.ok) {
-      router.push("/blog");
-    } else {
-      // Handle error
-      console.error("Failed to save post");
+      router.push('/blog')
+    } catch (error) {
+      console.error('Error saving post:', error)
     }
-  };
+  }
 
   const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this post?")) {
-      const response = await fetch(`${API_BASE_URL}/api/blog/${params.id}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        router.push("/blog");
-      } else {
-        // Handle error
-        console.error("Failed to delete post");
-      }
+    if (!window.confirm('Are you sure you want to delete this post?')) {
+      return
     }
-  };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/blog/${params.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete post')
+      }
+
+      router.push('/blog')
+    } catch (error) {
+      console.error('Error deleting post:', error)
+    }
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -96,36 +109,29 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
           required
         />
       </div>
-      <div>
+      <div data-color-mode="light">
         <Label htmlFor="content">Content</Label>
-        <Textarea
-          id="content"
+        <MDEditor
           value={post.content}
-          onChange={(e) => setPost({ ...post, content: e.target.value })}
-          required
+          onChange={(value) => setPost({ ...post, content: value || '' })}
+          height={400}
+          preview="edit"
         />
       </div>
       <div>
         <Label htmlFor="tags">Tags (comma-separated)</Label>
         <Input
           id="tags"
-          value={post.tags.join(", ")}
-          onChange={(e) =>
-            setPost({
-              ...post,
-              tags: e.target.value.split(",").map((tag) => tag.trim()),
-            })
-          }
+          value={post.tags.join(', ')}
+          onChange={(e) => setPost({ ...post, tags: e.target.value.split(',').map(tag => tag.trim()) })}
         />
       </div>
       <div className="flex justify-between">
         <Button type="submit">Save</Button>
-        {params.id !== "new" && (
-          <Button type="button" variant="destructive" onClick={handleDelete}>
-            Delete
-          </Button>
+        {params.id !== 'new' && (
+          <Button type="button" variant="destructive" onClick={handleDelete}>Delete</Button>
         )}
       </div>
     </form>
-  );
+  )
 }

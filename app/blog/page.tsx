@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { API_BASE_URL } from "@/lib/api-config";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 interface BlogPost {
   _id: string;
@@ -28,25 +28,59 @@ export default function BlogPage() {
   const [search, setSearch] = useState("");
   const [tag, setTag] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    fetchPosts();
-    fetchTags();
+  const fetchPosts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(
+        `${API_BASE_URL}/api/blogs?page=${page}&search=${encodeURIComponent(search)}&tag=${encodeURIComponent(tag)}`
+      );
+      if (!response.ok) {
+        throw new Error('Failed to fetch posts');
+      }
+      const data = await response.json();
+      setPosts(data.posts);
+      setTotalPages(data.totalPages);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      setPosts([]);
+      setTotalPages(1);
+    } finally {
+      setIsLoading(false);
+    }
   }, [page, search, tag]);
 
-  const fetchPosts = async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/blogs?page=${page}&search=${search}&tag=${tag}`
-    );
-    const data = await response.json();
-    setPosts(data.posts);
-    setTotalPages(data.totalPages);
+  const fetchTags = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/blog/tags`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch tags');
+      }
+      const data = await response.json();
+      setTags(data);
+    } catch (error) {
+      console.error('Error fetching tags:', error);
+      setTags([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchPosts();
+  }, [fetchPosts]);
+
+  useEffect(() => {
+    void fetchTags();
+  }, [fetchTags]);
+
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setPage(1); // Reset to first page when searching
   };
 
-  const fetchTags = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/blog/tags`);
-    const data = await response.json();
-    setTags(data);
+  const handleTagChange = (value: string) => {
+    setTag(value);
+    setPage(1); // Reset to first page when changing tags
   };
 
   return (
@@ -61,12 +95,12 @@ export default function BlogPage() {
         <Input
           placeholder="Search posts..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => handleSearch(e.target.value)}
           className="w-full sm:w-64"
         />
         <select
           value={tag}
-          onChange={(e) => setTag(e.target.value)}
+          onChange={(e) => handleTagChange(e.target.value)}
           className="w-full sm:w-auto border rounded p-2"
         >
           <option value="">All Tags</option>
@@ -78,36 +112,45 @@ export default function BlogPage() {
         </select>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {posts.map((post) => (
-          <Card key={post._id} className="flex flex-col">
-            <CardHeader>
-              <CardTitle className="line-clamp-2">{post.title}</CardTitle>
-              <CardDescription className="line-clamp-3">
-                {post.excerpt}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow flex flex-col justify-between">
-              <div className="flex flex-wrap gap-2 mb-4">
-                {post.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-              <Button asChild className="w-full">
-                <Link href={`/blog/${post._id}`}>Read More</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+        {isLoading ? (
+          <div className="col-span-full text-center">Loading...</div>
+        ) : posts.length > 0 ? (
+          posts.map((post) => (
+            <Card key={post._id} className="flex flex-col">
+              <CardHeader>
+                <CardTitle className="line-clamp-2">{post.title}</CardTitle>
+                <CardDescription className="line-clamp-3">
+                  {post.excerpt}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow flex flex-col justify-between">
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {post.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+                <Button asChild className="w-full">
+                  <Link href={`/blog/${post._id}`}>Read More</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <div className="col-span-full text-center">No posts found</div>
+        )}
       </div>
       <div className="flex justify-center space-x-4">
-        <Button onClick={() => setPage(page - 1)} disabled={page === 1}>
+        <Button 
+          onClick={() => setPage(page - 1)} 
+          disabled={page === 1 || isLoading}
+        >
           Previous
         </Button>
         <Button
           onClick={() => setPage(page + 1)}
-          disabled={page === totalPages}
+          disabled={page === totalPages || isLoading}
         >
           Next
         </Button>
