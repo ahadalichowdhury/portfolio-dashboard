@@ -28,7 +28,7 @@ export default function BlogPostPage({ params }: { params: { id: string } }) {
 
   const fetchPost = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/blog/${params.id}`)
+      const response = await fetch(`${API_BASE_URL}/api/blogs/${params.id}`)
       if (!response.ok) {
         throw new Error('Failed to fetch post')
       }
